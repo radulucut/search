@@ -30,10 +30,11 @@ var items = []Book{
 }
 
 func Test_Engine(t *testing.T) {
-	engine := NewEngine(items, func(item Book) (int64, string) {
-		return item.Id, item.Text
-	}, nil)
+	engine := NewEngine()
 	engine.SetTolerance(2)
+	for _, item := range items {
+		engine.SetItem(item.Id, item.Text)
+	}
 	tests := []struct {
 		query    string
 		expected []int64
@@ -48,12 +49,38 @@ func Test_Engine(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.query, func(t *testing.T) {
-			actual := engine.Search(test.query, 5)
+			actual := engine.Search(test.query, 5, nil)
 			if diff := cmp.Diff(test.expected, actual); diff != "" {
 				t.Errorf("mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
+
+	t.Run("Ignore ids", func(t *testing.T) {
+		actual := engine.Search("maitreyi", 5, []int64{4})
+		expected := []int64{}
+		if diff := cmp.Diff(expected, actual); diff != "" {
+			t.Errorf("mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	engine.SetItem(16, "Ciocoii vechi și noi de Nicolae Filimon")
+	t.Run("SetItem", func(t *testing.T) {
+		actual := engine.Search("Ciocoii vechi", 5, nil)
+		expected := []int64{16}
+		if diff := cmp.Diff(expected, actual); diff != "" {
+			t.Errorf("mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	engine.DeleteItem(7)
+	t.Run("DeleteItem", func(t *testing.T) {
+		actual := engine.Search("Moara", 5, nil)
+		expected := []int64{}
+		if diff := cmp.Diff(expected, actual); diff != "" {
+			t.Errorf("mismatch (-want +got):\n%s", diff)
+		}
+	})
 }
 
 func Test_Tokenize(t *testing.T) {

@@ -12,35 +12,24 @@ type Engine struct {
 	mx        sync.RWMutex
 }
 
-// NewEngine creates a new search engine.
-//
-// items is a slice of items to be indexed.
-//
-// mapFunc is a function that maps an item to an id and a string.
-//
-// tokenizeFunc is an optional function that tokenizes a string into words.
-func NewEngine[T any](
-	items []T,
-	mapFunc func(T) (int64, string),
-	tokenizeFunc TokenizeFunc,
-) *Engine {
+func NewEngine() *Engine {
 	engine := &Engine{
 		items:     make(map[int64][][]rune),
 		tolerance: 1,
 		tokenize:  Tokenize,
 		mx:        sync.RWMutex{},
 	}
-	if tokenizeFunc != nil {
-		engine.tokenize = tokenizeFunc
-	}
-	for i := range items {
-		id, s := mapFunc(items[i])
-		engine.items[id] = engine.tokenize(s)
-	}
 	return engine
 }
 
-// SetTolerance sets the maximum number of typos per word allowed.
+// Set custom tokenize function.
+func (e *Engine) SetTokenizeFunc(f TokenizeFunc) {
+	e.mx.Lock()
+	defer e.mx.Unlock()
+	e.tokenize = f
+}
+
+// Set the maximum number of typos per word allowed.
 // The default value is 1.
 func (e *Engine) SetTolerance(tolerance int) {
 	e.mx.Lock()
@@ -48,14 +37,14 @@ func (e *Engine) SetTolerance(tolerance int) {
 	e.tolerance = tolerance
 }
 
-// SetItem adds a new item to the search engine.
+// Add a new item to the search engine.
 func (e *Engine) SetItem(id int64, text string) {
 	e.mx.Lock()
 	defer e.mx.Unlock()
 	e.items[id] = e.tokenize(text)
 }
 
-// DeleteItem removes an item from the search engine.
+// Remove an item from the search engine.
 func (e *Engine) DeleteItem(id int64) {
 	e.mx.Lock()
 	defer e.mx.Unlock()
@@ -69,12 +58,28 @@ type itemScore struct {
 
 // Search finds the most similar items to the given query.
 // limit is the maximum number of items to return.
-func (e *Engine) Search(query string, limit int) []int64 {
+// ignore is a list of item ids to ignore.
+func (e *Engine) Search(query string, limit int, ignore []int64) []int64 {
+	var ignoreMap map[int64]struct{}
+	hasIgnore := false
+	if len(ignore) != 0 {
+		hasIgnore = true
+		ignoreMap = make(map[int64]struct{})
+		for i := range ignore {
+			ignoreMap[ignore[i]] = struct{}{}
+		}
+	}
+
 	q := e.tokenize(query)
 	e.mx.RLock()
 	defer e.mx.RUnlock()
 	scores := make([]itemScore, 0)
 	for id := range e.items {
+		if hasIgnore {
+			if _, ok := ignoreMap[id]; ok {
+				continue
+			}
+		}
 		score := e.score(q, e.items[id])
 		if score == -1 {
 			continue

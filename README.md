@@ -47,10 +47,13 @@ var items = []Book{
 
 func main() {
 	// Create a new search engine
-	engine := search.NewEngine(items, func(item Book) (int64, string) {
-		return item.Id, item.Text
-	}, nil)
+	engine := search.NewEngine()
 	engine.SetTolerance(2)
+
+	// Add items to the search engine
+	for _, item := range items {
+		engine.SetItem(item.Id, item.Text)
+	}
 
 	// Search for a book
 	results := engine.Search("Eliade", 5)
