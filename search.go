@@ -6,10 +6,10 @@ import (
 )
 
 type Engine struct {
+	sync.RWMutex
 	items     map[int64][][]rune
 	tokenize  TokenizeFunc
 	tolerance int
-	mx        sync.RWMutex
 }
 
 func NewEngine() *Engine {
@@ -17,37 +17,36 @@ func NewEngine() *Engine {
 		items:     make(map[int64][][]rune),
 		tolerance: 1,
 		tokenize:  Tokenize,
-		mx:        sync.RWMutex{},
 	}
 	return engine
 }
 
 // Set custom tokenize function.
 func (e *Engine) SetTokenizeFunc(f TokenizeFunc) {
-	e.mx.Lock()
-	defer e.mx.Unlock()
+	e.Lock()
+	defer e.Unlock()
 	e.tokenize = f
 }
 
 // Set the maximum number of typos per word allowed.
 // The default value is 1.
 func (e *Engine) SetTolerance(tolerance int) {
-	e.mx.Lock()
-	defer e.mx.Unlock()
+	e.Lock()
+	defer e.Unlock()
 	e.tolerance = tolerance
 }
 
 // Add a new item to the search engine.
 func (e *Engine) SetItem(id int64, text string) {
-	e.mx.Lock()
-	defer e.mx.Unlock()
+	e.Lock()
+	defer e.Unlock()
 	e.items[id] = e.tokenize(text)
 }
 
 // Remove an item from the search engine.
 func (e *Engine) DeleteItem(id int64) {
-	e.mx.Lock()
-	defer e.mx.Unlock()
+	e.Lock()
+	defer e.Unlock()
 	delete(e.items, id)
 }
 
@@ -71,8 +70,8 @@ func (e *Engine) Search(query string, limit int, ignore []int64) []int64 {
 	}
 
 	q := e.tokenize(query)
-	e.mx.RLock()
-	defer e.mx.RUnlock()
+	e.RLock()
+	defer e.RUnlock()
 	scores := make([]itemScore, 0)
 	for id := range e.items {
 		if hasIgnore {
