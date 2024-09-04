@@ -1,7 +1,8 @@
 package search
 
 import (
-	"sort"
+	"math"
+	"slices"
 	"sync"
 )
 
@@ -55,24 +56,30 @@ type itemScore struct {
 	score int
 }
 
+type SearchOptions struct {
+	Query  string
+	Limit  int
+	Offset int
+	Ignore []int64
+}
+
 // Search finds the most similar items to the given query.
 // limit is the maximum number of items to return.
 // ignore is a list of item ids to ignore.
-func (e *Engine) Search(query string, limit int, ignore []int64) []int64 {
+func (e *Engine) Search(opts SearchOptions) []int64 {
 	var ignoreMap map[int64]struct{}
 	hasIgnore := false
-	if len(ignore) != 0 {
+	if len(opts.Ignore) != 0 {
 		hasIgnore = true
 		ignoreMap = make(map[int64]struct{})
-		for i := range ignore {
-			ignoreMap[ignore[i]] = struct{}{}
+		for i := range opts.Ignore {
+			ignoreMap[opts.Ignore[i]] = struct{}{}
 		}
 	}
-
-	q := e.tokenize(query)
+	q := e.tokenize(opts.Query)
 	e.RLock()
 	defer e.RUnlock()
-	scores := make([]itemScore, 0)
+	scores := make([]*itemScore, 0)
 	for id := range e.items {
 		if hasIgnore {
 			if _, ok := ignoreMap[id]; ok {
@@ -83,18 +90,26 @@ func (e *Engine) Search(query string, limit int, ignore []int64) []int64 {
 		if score == -1 {
 			continue
 		}
-		scores = append(scores, itemScore{id: id, score: score})
+		scores = append(scores, &itemScore{id: id, score: score})
 	}
-	sort.Slice(scores, func(i, j int) bool {
-		if scores[i].score == scores[j].score {
-			return scores[i].id > scores[j].id
-		} else {
-			return scores[i].score < scores[j].score
+	slices.SortFunc(scores, func(a, b *itemScore) int {
+		if a.score < b.score {
+			return -1
 		}
+		if a.score > b.score {
+			return 1
+		}
+		if a.id > b.id {
+			return -1
+		}
+		if a.id < b.id {
+			return 1
+		}
+		return 0
 	})
-	limit = min(limit, len(scores))
+	limit := min(opts.Offset+opts.Limit, len(scores))
 	res := make([]int64, 0, limit)
-	for i := 0; i < limit; i++ {
+	for i := opts.Offset; i < limit; i++ {
 		res = append(res, scores[i].id)
 	}
 	return res
@@ -104,7 +119,7 @@ func (e *Engine) score(q, b [][]rune) int {
 	var score int
 	skip := true
 	for i := range q {
-		best := (1<<63 - 1)
+		best := math.MaxInt
 		for j := range b {
 			best = min(best, LevenshteinDistance(q[i], b[j]))
 		}

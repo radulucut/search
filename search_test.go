@@ -3,7 +3,7 @@ package search
 import (
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
 )
 
 type Book struct {
@@ -45,41 +45,51 @@ func Test_Engine(t *testing.T) {
 		{"spânzuraţilor", []int64{2}},
 		{"amintiri din copilărie", []int64{8, 11, 10, 5, 15}},
 		{"xyz zyx", []int64{}},
+		{"din", []int64{11, 8, 15, 14, 13}},
 	}
 
 	for _, test := range tests {
 		t.Run(test.query, func(t *testing.T) {
-			actual := engine.Search(test.query, 5, nil)
-			if diff := cmp.Diff(test.expected, actual); diff != "" {
-				t.Errorf("mismatch (-want +got):\n%s", diff)
-			}
+			actual := engine.Search(SearchOptions{Query: test.query, Limit: 5})
+			assert.Equal(t, test.expected, actual)
 		})
 	}
 
+	t.Run("offset", func(t *testing.T) {
+		actual := engine.Search(SearchOptions{
+			Query:  "de",
+			Limit:  5,
+			Offset: 5,
+			Ignore: []int64{15},
+		})
+		assert.Equal(t, []int64{9, 8, 7, 6, 5}, actual)
+	})
+
 	t.Run("Ignore ids", func(t *testing.T) {
-		actual := engine.Search("maitreyi", 5, []int64{4})
-		expected := []int64{}
-		if diff := cmp.Diff(expected, actual); diff != "" {
-			t.Errorf("mismatch (-want +got):\n%s", diff)
-		}
+		actual := engine.Search(SearchOptions{
+			Query:  "maitreyi",
+			Limit:  5,
+			Ignore: []int64{4},
+		})
+		assert.ElementsMatch(t, []int64{}, actual)
 	})
 
 	engine.SetItem(16, "Ciocoii vechi și noi de Nicolae Filimon")
 	t.Run("SetItem", func(t *testing.T) {
-		actual := engine.Search("Ciocoii vechi", 5, nil)
-		expected := []int64{16}
-		if diff := cmp.Diff(expected, actual); diff != "" {
-			t.Errorf("mismatch (-want +got):\n%s", diff)
-		}
+		actual := engine.Search(SearchOptions{
+			Query: "Ciocoii vechi",
+			Limit: 5,
+		})
+		assert.ElementsMatch(t, []int64{16}, actual)
 	})
 
 	engine.DeleteItem(7)
 	t.Run("DeleteItem", func(t *testing.T) {
-		actual := engine.Search("Moara", 5, nil)
-		expected := []int64{}
-		if diff := cmp.Diff(expected, actual); diff != "" {
-			t.Errorf("mismatch (-want +got):\n%s", diff)
-		}
+		actual := engine.Search(SearchOptions{
+			Query: "Moara",
+			Limit: 5,
+		})
+		assert.ElementsMatch(t, []int64{}, actual)
 	})
 }
 
@@ -94,9 +104,7 @@ func Test_Tokenize(t *testing.T) {
 		{'4'},
 		{'a', 'a', 'a', 'a', 'i', 'i', 's', 's', 's', 's', 't', 't', 't', 't'},
 	}
-	if diff := cmp.Diff(expected, tokens); diff != "" {
-		t.Errorf("mismatch (-want +got):\n%s", diff)
-	}
+	assert.Equal(t, expected, tokens)
 }
 
 func Test_LevenshteinDistance(t *testing.T) {
@@ -121,9 +129,7 @@ func Test_LevenshteinDistance(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run("LevenshteinDistance", func(t *testing.T) {
-			if diff := cmp.Diff(test.expected, LevenshteinDistance(test.a, test.b)); diff != "" {
-				t.Errorf("mismatch (-want +got):\n%s", diff)
-			}
+			assert.Equal(t, test.expected, LevenshteinDistance(test.a, test.b))
 		})
 	}
 }
