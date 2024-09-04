@@ -37,15 +37,15 @@ func Test_Engine(t *testing.T) {
 	}
 	tests := []struct {
 		query    string
-		expected []int64
+		expected SearchResult
 	}{
-		{"maitreyi", []int64{4}},
-		{"eliade", []int64{11, 6, 4}},
-		{"Patul lui", []int64{9, 12, 11, 10, 7}},
-		{"spânzuraţilor", []int64{2}},
-		{"amintiri din copilărie", []int64{8, 11, 10, 5, 15}},
-		{"xyz zyx", []int64{}},
-		{"din", []int64{11, 8, 15, 14, 13}},
+		{"maitreyi", SearchResult{Items: []int64{4}, Total: 1, Pages: 1}},
+		{"eliade", SearchResult{Items: []int64{11, 6, 4}, Total: 3, Pages: 1}},
+		{"Patul lui", SearchResult{Items: []int64{9, 12, 11, 10, 7}, Total: 8, Pages: 2}},
+		{"spânzuraţilor", SearchResult{Items: []int64{2}, Total: 1, Pages: 1}},
+		{"amintiri din copilărie", SearchResult{Items: []int64{8, 11, 10, 5, 15}, Total: 15, Pages: 3}},
+		{"xyz zyx", SearchResult{Items: []int64{}, Total: 0, Pages: 0}},
+		{"din", SearchResult{Items: []int64{11, 8, 15, 14, 13}, Total: 15, Pages: 3}},
 	}
 
 	for _, test := range tests {
@@ -62,7 +62,7 @@ func Test_Engine(t *testing.T) {
 			Offset: 5,
 			Ignore: []int64{15},
 		})
-		assert.Equal(t, []int64{9, 8, 7, 6, 5}, actual)
+		assert.Equal(t, SearchResult{Items: []int64{9, 8, 7, 6, 5}, Total: 14, Pages: 3}, actual)
 	})
 
 	t.Run("Ignore ids", func(t *testing.T) {
@@ -71,7 +71,7 @@ func Test_Engine(t *testing.T) {
 			Limit:  5,
 			Ignore: []int64{4},
 		})
-		assert.ElementsMatch(t, []int64{}, actual)
+		assert.Equal(t, SearchResult{Items: []int64{}}, actual)
 	})
 
 	engine.SetItem(16, "Ciocoii vechi și noi de Nicolae Filimon")
@@ -80,7 +80,7 @@ func Test_Engine(t *testing.T) {
 			Query: "Ciocoii vechi",
 			Limit: 5,
 		})
-		assert.ElementsMatch(t, []int64{16}, actual)
+		assert.Equal(t, SearchResult{Items: []int64{16}, Total: 1, Pages: 1}, actual)
 	})
 
 	engine.DeleteItem(7)
@@ -89,7 +89,7 @@ func Test_Engine(t *testing.T) {
 			Query: "Moara",
 			Limit: 5,
 		})
-		assert.ElementsMatch(t, []int64{}, actual)
+		assert.Equal(t, SearchResult{Items: []int64{}}, actual)
 	})
 }
 

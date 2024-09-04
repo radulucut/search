@@ -63,10 +63,16 @@ type SearchOptions struct {
 	Ignore []int64
 }
 
+type SearchResult struct {
+	Items []int64
+	Total int
+	Pages int
+}
+
 // Search finds the most similar items to the given query.
 // limit is the maximum number of items to return.
 // ignore is a list of item ids to ignore.
-func (e *Engine) Search(opts SearchOptions) []int64 {
+func (e *Engine) Search(opts SearchOptions) SearchResult {
 	var ignoreMap map[int64]struct{}
 	hasIgnore := false
 	if len(opts.Ignore) != 0 {
@@ -107,12 +113,21 @@ func (e *Engine) Search(opts SearchOptions) []int64 {
 		}
 		return 0
 	})
-	limit := min(opts.Offset+opts.Limit, len(scores))
+	l := len(scores)
+	limit := min(opts.Offset+opts.Limit, l)
 	res := make([]int64, 0, limit)
 	for i := opts.Offset; i < limit; i++ {
 		res = append(res, scores[i].id)
 	}
-	return res
+	pages := l / opts.Limit
+	if l%opts.Limit != 0 {
+		pages++
+	}
+	return SearchResult{
+		Items: res,
+		Total: l,
+		Pages: pages,
+	}
 }
 
 func (e *Engine) score(q, b [][]rune) int {
