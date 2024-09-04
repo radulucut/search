@@ -56,10 +56,10 @@ func main() {
 	}
 
 	// Search for a book
-	results := engine.Search(engine.SearchOptions{ Query: "Eliade", Limit: 5 })
+	results := engine.Search(search.SearchOptions{ Query: "Eliade", Limit: 5 })
 
 	// Print the results
-	// engine.SearchResult{ Items: { 11, 6, 4 }, Total: 3, Pages: 1 }
+	// search.SearchResult{ Items: { 11, 6, 4 }, Total: 3, Pages: 1 }
 	fmt.Println(results)
 }
 

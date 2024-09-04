@@ -1,34 +1,27 @@
 package search
 
-import "unicode"
+import (
+	"unicode"
+
+	"golang.org/x/text/runes"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
+)
 
 type TokenizeFunc func(input string) [][]rune
 
-func Tokenize(input string) [][]rune {
+func tokenize(input string) [][]rune {
 	var tokens [][]rune
 	var token []rune
-	for _, r := range input {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			switch r {
-			// Normalize Romanian diacritics.
-			case 'ă', 'Ă':
-				r = 'a'
-			case 'â', 'Â':
-				r = 'a'
-			case 'î', 'Î':
-				r = 'i'
-			case 'ș', 'ş', 'Ș', 'Ş':
-				r = 's'
-			case 'ț', 'ţ', 'Ț', 'Ţ':
-				r = 't'
-			}
-			token = append(token, unicode.ToLower(r))
-		} else {
+	for _, r := range normalize(input) {
+		if unicode.IsSpace(r) || unicode.IsPunct(r) {
 			if len(token) > 0 {
 				tokens = append(tokens, token)
 				token = nil
 			}
+			continue
 		}
+		token = append(token, unicode.ToLower(r))
 	}
 	if len(token) > 0 {
 		tokens = append(tokens, token)
@@ -36,7 +29,19 @@ func Tokenize(input string) [][]rune {
 	return tokens
 }
 
-func LevenshteinDistance(a, b []rune) int {
+func normalize(s string) string {
+	r, _, err := transform.String(transform.Chain(
+		norm.NFD,
+		runes.Remove(runes.In(unicode.Mn)),
+		norm.NFC,
+	), s)
+	if err != nil {
+		return s
+	}
+	return r
+}
+
+func levenshteinDistance(a, b []rune) int {
 	if len(a) == 0 {
 		return len(b)
 	}

@@ -9,7 +9,6 @@ import (
 type Engine struct {
 	sync.RWMutex
 	items     map[int64][][]rune
-	tokenize  TokenizeFunc
 	tolerance int
 }
 
@@ -17,16 +16,8 @@ func NewEngine() *Engine {
 	engine := &Engine{
 		items:     make(map[int64][][]rune),
 		tolerance: 1,
-		tokenize:  Tokenize,
 	}
 	return engine
-}
-
-// Set custom tokenize function.
-func (e *Engine) SetTokenizeFunc(f TokenizeFunc) {
-	e.Lock()
-	defer e.Unlock()
-	e.tokenize = f
 }
 
 // Set the maximum number of typos per word allowed.
@@ -41,7 +32,7 @@ func (e *Engine) SetTolerance(tolerance int) {
 func (e *Engine) SetItem(id int64, text string) {
 	e.Lock()
 	defer e.Unlock()
-	e.items[id] = e.tokenize(text)
+	e.items[id] = tokenize(text)
 }
 
 // Remove an item from the search engine.
@@ -82,7 +73,7 @@ func (e *Engine) Search(opts SearchOptions) SearchResult {
 			ignoreMap[opts.Ignore[i]] = struct{}{}
 		}
 	}
-	q := e.tokenize(opts.Query)
+	q := tokenize(opts.Query)
 	e.RLock()
 	defer e.RUnlock()
 	scores := make([]*itemScore, 0)
@@ -136,7 +127,7 @@ func (e *Engine) score(q, b [][]rune) int {
 	for i := range q {
 		best := math.MaxInt
 		for j := range b {
-			best = min(best, LevenshteinDistance(q[i], b[j]))
+			best = min(best, levenshteinDistance(q[i], b[j]))
 		}
 		if best <= e.tolerance {
 			skip = false

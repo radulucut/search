@@ -94,7 +94,7 @@ func Test_Engine(t *testing.T) {
 }
 
 func Test_Tokenize(t *testing.T) {
-	tokens := Tokenize("Țară, România, școală, mâine! 123.4 ăĂâÂîÎșşȘŞțţȚŢ")
+	tokens := tokenize("Țară, România, școală, mâine! 123.4 ăĂâÂîÎșşȘŞțţȚŢ 正方形 ✅")
 	expected := [][]rune{
 		{'t', 'a', 'r', 'a'},
 		{'r', 'o', 'm', 'a', 'n', 'i', 'a'},
@@ -103,6 +103,8 @@ func Test_Tokenize(t *testing.T) {
 		{'1', '2', '3'},
 		{'4'},
 		{'a', 'a', 'a', 'a', 'i', 'i', 's', 's', 's', 's', 't', 't', 't', 't'},
+		{'正', '方', '形'},
+		{'✅'},
 	}
 	assert.Equal(t, expected, tokens)
 }
@@ -129,7 +131,7 @@ func Test_LevenshteinDistance(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run("LevenshteinDistance", func(t *testing.T) {
-			assert.Equal(t, test.expected, LevenshteinDistance(test.a, test.b))
+			assert.Equal(t, test.expected, levenshteinDistance(test.a, test.b))
 		})
 	}
 }
