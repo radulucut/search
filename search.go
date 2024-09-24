@@ -8,13 +8,17 @@ import (
 
 type Engine struct {
 	sync.RWMutex
-	items     map[int64][][]rune
 	tolerance int
+	items     []item
+}
+
+type item struct {
+	Id   int64
+	Text [][]rune
 }
 
 func NewEngine() *Engine {
 	engine := &Engine{
-		items:     make(map[int64][][]rune),
 		tolerance: 1,
 	}
 	return engine
@@ -32,14 +36,28 @@ func (e *Engine) SetTolerance(tolerance int) {
 func (e *Engine) SetItem(id int64, text string) {
 	e.Lock()
 	defer e.Unlock()
-	e.items[id] = tokenize(text)
+	index, ok := binarySearch(e.items, id)
+	if ok {
+		e.items[index].Text = tokenize(text)
+		return
+	}
+	e.items = append(e.items, item{})
+	copy(e.items[index+1:], e.items[index:])
+	e.items[index] = item{
+		Id:   id,
+		Text: tokenize(text),
+	}
 }
 
 // Remove an item from the search engine.
 func (e *Engine) DeleteItem(id int64) {
 	e.Lock()
 	defer e.Unlock()
-	delete(e.items, id)
+	index, ok := binarySearch(e.items, id)
+	if !ok {
+		return
+	}
+	e.items = append(e.items[:index], e.items[index+1:]...)
 }
 
 type itemScore struct {
@@ -77,13 +95,14 @@ func (e *Engine) Search(opts SearchOptions) SearchResult {
 	e.RLock()
 	defer e.RUnlock()
 	scores := make([]*itemScore, 0)
-	for id := range e.items {
+	for i := range e.items {
+		id := e.items[i].Id
 		if hasIgnore {
 			if _, ok := ignoreMap[id]; ok {
 				continue
 			}
 		}
-		score := e.score(q, e.items[id])
+		score := e.score(q, e.items[i].Text)
 		if score == -1 {
 			continue
 		}
@@ -138,4 +157,18 @@ func (e *Engine) score(q, b [][]rune) int {
 		return -1
 	}
 	return score
+}
+
+func binarySearch(s []item, target int64) (int, bool) {
+	n := len(s)
+	l, r := 0, n
+	for l < r {
+		m := int(uint(l+r) >> 1)
+		if s[m].Id < target {
+			l = m + 1
+		} else {
+			r = m
+		}
+	}
+	return l, l < n && s[l].Id == target
 }

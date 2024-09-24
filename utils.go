@@ -8,8 +8,6 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-type TokenizeFunc func(input string) [][]rune
-
 func tokenize(input string) [][]rune {
 	var tokens [][]rune
 	var token []rune
